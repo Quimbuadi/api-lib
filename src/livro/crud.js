@@ -1,7 +1,7 @@
 import banco from "../banco-de-dados/db.js";
 import ErrorPersonalizado from "../error/appError.js";
-import buscarCategoriaPorId from "../categoria/crud.js";
-import upload from "../upload/upload.js";
+import { buscarCategoriaPorId } from "../categoria/crud.js";
+import crypto from "crypto";
 
 /*
 # Field	Type	Null	Key	Default	Extra
@@ -26,69 +26,116 @@ const cadastrarLivro = async (dados) => {
     if (!categoria) {
       throw new ErrorPersonalizado("Categoria não encontrada", 404);
     }
-    
+    const modelo = `ISBN-`;
+    const isbn = modelo + crypto.randomBytes(5).toString("hex");
+
+    console.log(isbn);
 
     const [result] = await banco.query(
       'INSERT INTO livro (titulo, editora, ano_publicacao, id_categoria, isbn_codigo, img, quantidade) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [dados.titulo, dados.editora, dados.ano_publicacao, dados.id_categoria, dados.isbn_codigo, dados.img, dados.quantidade]
+      [dados.titulo, dados.editora, dados.ano_publicacao, dados.id_categoria, isbn, dados.img, dados.quantidade]
     );
-    return result;
+    return result.insertId;
   } catch (error) {
-    console.error('Erro ao cadastrar livro:', error);
     throw error;
   }
 };
 
-const livroExiste = async(isbn, titulo) => {
-    try {
-        const [rows] = await banco.query(
-            'SELECT * FROM livro WHERE isbn_codigo = ? OR titulo = ?',
-            [isbn, titulo]
-        );
-        return rows.length > 0;
+const atualizarLivro = async (id, dados) => {
+  const livro = await buscarLivroPorId(id);
+  if (!livro) throw new ErrorPersonalizado("Livro não encontrado", 404);
 
-    } catch (error) {
-        throw new ErrorPersonalizado("Erro ao verificar livro existente", 500);
-    }
-}
-
-const loginUsuario = async (email, password) => {
-  try {
-    const emailExiste = await usuarioExiste(email);
-    if (!emailExiste) {
-      throw new ErrorPersonalizado("Usuário não encontrado", 404);
-    }
-
-    const [rows] = await banco.execute(
-      'SELECT id, nome, email, password, telefone, tipo_usuario FROM usuario WHERE email = ?',
-      [email]
+  // verifica duplicado de título (excluindo o próprio livro)
+  if (dados.titulo) {
+    const [mesmaTitulo] = await banco.query(
+      'SELECT id FROM livro WHERE titulo = ? AND id != ?',
+      [dados.titulo, id]
     );
-    const usuario = rows[0];
-    const isMatch = await bcrypt.compare(password, usuario.password);
-    if (!isMatch) {
-      throw new ErrorPersonalizado("Senha incorreta", 400);
-    }
-    return usuario;
-  } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    throw error;
+    if (mesmaTitulo.length > 0)
+      throw new ErrorPersonalizado("Já existe um livro com este título", 409);
   }
+
+  // verifica duplicado de isbn (excluindo o próprio livro)
+  if (dados.isbn_codigo) {
+    const [mesmoIsbn] = await banco.query(
+      'SELECT id FROM livro WHERE isbn_codigo = ? AND id != ?',
+      [dados.isbn_codigo, id]
+    );
+    if (mesmoIsbn.length > 0)
+      throw new ErrorPersonalizado("Já existe um livro com este ISBN", 409);
+  }
+
+  // monta update dinâmico só com os campos enviados
+  const campos = Object.keys(dados).map(k => `${k} = ?`).join(', ');
+  const valores = [...Object.values(dados), id];
+
+  const [result] = await banco.query(
+    `UPDATE livro SET ${campos} WHERE id = ?`,
+    valores
+  );
+
+  return result.affectedRows > 0 ? { id, ...dados } : null;
 };
 
-const verPerfil = async (id) => {
-  try {
-    const [rows] = await banco.query(
-      'SELECT id, nome, email, telefone FROM usuario WHERE id = ?',
-      [id]
-    );
-    
-    if (rows.length === 0) {
-      throw new ErrorPersonalizado("Usuário não encontrado", 404);
-    }
-    return rows[0];
-  } catch (error) {
-    throw new ErrorPersonalizado(error, 404);
-  }
+
+const SELECT_LIVRO = `
+  SELECT l.id, l.titulo, l.editora, l.ano_publicacao, 
+         c.nome AS categoria, l.isbn_codigo, l.img, l.quantidade 
+  FROM livro l 
+  JOIN categoria c ON l.id_categoria = c.id
+`;
+
+const livroExiste = async (isbn, titulo) => {
+  const [rows] = await banco.query(
+    'SELECT id FROM livro WHERE isbn_codigo = ? OR titulo = ?',
+    [isbn, titulo]
+  );
+  return rows.length > 0;
 };
 
-export { criarUsuario, loginUsuario, verPerfil };
+const listarLivros = async ({ titulo, categoria, page = 1, limit = 10 } = {}) => {
+  const conditions = [];
+  const valores = [];
+
+  if (titulo) {
+    conditions.push('l.titulo LIKE ?');
+    valores.push(`%${titulo}%`);
+  }
+
+  if (categoria) {
+    conditions.push('l.id_categoria = ?');
+    valores.push(categoria);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const offset = (page - 1) * limit;
+
+  const [rows] = await banco.query(
+    `${SELECT_LIVRO} ${where} LIMIT ? OFFSET ?`,
+    [...valores, Number(limit), Number(offset)]
+  );
+
+  const [[{ total }]] = await banco.query(
+    `SELECT COUNT(*) as total FROM livro l ${where}`,
+    valores
+  );
+
+  return {
+    data: rows,
+    meta: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit)
+    }
+  };
+};
+
+const buscarLivroPorId = async (id) => {
+  const [rows] = await banco.query(
+    `${SELECT_LIVRO} WHERE l.id = ?`, [id]
+  );
+  return rows[0] || null;
+};
+
+export { cadastrarLivro,  atualizarLivro, listarLivros, buscarLivroPorId };
