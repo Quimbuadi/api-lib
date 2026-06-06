@@ -15,7 +15,7 @@ const cadastrarLivroController = async (req, res) => {
 
         //pegar o nome da imagem do arquivo enviado
         if (req.file) {
-            req.body.img = `public/uploads/${req.file.filename}`;
+            req.body.img = `uploads/${req.file.filename}`;
         } else {
             throw new ErrorPersonalizado("Imagem do livro é obrigatória", 400);
         }

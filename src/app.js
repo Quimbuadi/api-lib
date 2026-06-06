@@ -18,7 +18,7 @@ app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 
 //arquivo estaticos
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 
 app.use("/api/usuarios", usuarioRouter);
 app.use("/api/", categoriaRouter);
