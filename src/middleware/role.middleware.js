@@ -21,6 +21,7 @@ const verificarRole = (req, res, next) => {
         
         
         if(role !== "admin"){
+            console.log(decoded);
             throw new ErrorPersonalizado("Acesso negado: Permissão insuficiente", 403);
         }
         next();

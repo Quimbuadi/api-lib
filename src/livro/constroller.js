@@ -1,5 +1,5 @@
 import { criarUsuario, loginUsuario, verPerfil } from "./crud.js";
-import { usuarioSchemaLogin, usuarioSchemaCadastro } from "./validation.js";
+import { livroSchemaCadastro, livroSchemaAtualizado } from "./validation.js";
 import ErrorPersonalizado from "../error/appError.js";
 import jwt from "jsonwebtoken";
 

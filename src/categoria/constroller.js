@@ -1,4 +1,4 @@
-import { criarCategoria, atualizarCategoria, listarCategorias } from "./crud.js";
+import { criarCategoria, atualizarCategoria, listarCategorias, buscarCategoriaPorId, buscarCategoriaPorNome } from "./crud.js";
 import { categoriaSchema } from "./validation.js";
 import ErrorPersonalizado from "../error/appError.js";
 import jwt from "jsonwebtoken";
@@ -52,4 +52,36 @@ const listarCategoriasController = async (req, res) => {
     }
 };
 
-export { criarCategoriaController, atualizarCategoriaController, listarCategoriasController };
+const buscarCategoriaPorIdController = async (req, res) => {
+    const { id } = req.params;  
+    if (!id || isNaN(id)) {
+        return res.status(400).json({ message: "ID da categoria é obrigatório e deve ser um número válido" });
+    }
+    try {
+        const categoria = await buscarCategoriaPorId(id);
+        res.status(200).json(categoria);
+    } catch (error) {
+        if (error instanceof ErrorPersonalizado) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Erro ao buscar categoria", error: error.message });
+    }
+};
+
+const buscarCategoriaPorNomeController = async (req, res) => {
+    const { nome } = req.query;
+    if (!nome) {
+        return res.status(400).json({ message: "Nome da categoria é obrigatório" });
+    }
+    try {
+        const categoria = await buscarCategoriaPorNome(nome);
+        res.status(200).json(categoria);
+    } catch (error) {
+        if (error instanceof ErrorPersonalizado) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Erro ao buscar categoria", error: error.message });
+    }
+};
+
+export { criarCategoriaController, atualizarCategoriaController, listarCategoriasController, buscarCategoriaPorIdController, buscarCategoriaPorNomeController };

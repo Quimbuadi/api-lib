@@ -1,36 +1,54 @@
 import banco from "../banco-de-dados/db.js";
 import ErrorPersonalizado from "../error/appError.js";
-import bcrypt from "bcrypt";
+import buscarCategoriaPorId from "../categoria/crud.js";
+import upload from "../upload/upload.js";
 
-const criarUsuario = async (dados) => {
+/*
+# Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI		auto_increment
+titulo	varchar(150)	NO	UNI		
+editora	varchar(150)	NO			
+ano_publicacao	date	NO			
+id_categoria	int	YES	MUL		
+isbn_codigo	varchar(50)	NO			
+img	varchar(254)	NO			
+quantidade	int	YES			
+*/
+
+const cadastrarLivro = async (dados) => {
   try {
 
-    const emailExiste = await usuarioExiste(dados.email);
-    if (emailExiste) {
-      throw new ErrorPersonalizado("Email já cadastrado", 400);
+    const existe = await livroExiste(dados.isbn_codigo, dados.titulo);
+    if (existe) {
+      throw new ErrorPersonalizado("Livro já cadastrado", 400);
     }
-    const hashPassword = await bcrypt.hash(dados.password, 10);
+    const categoria = await buscarCategoriaPorId(dados.id_categoria);
+    if (!categoria) {
+      throw new ErrorPersonalizado("Categoria não encontrada", 404);
+    }
+    
+
     const [result] = await banco.query(
-      'INSERT INTO usuario (nome, password, email, telefone ) VALUES (?, ?, ?, ?)',
-      [dados.nome, hashPassword, dados.email, dados.telefone]
+      'INSERT INTO livro (titulo, editora, ano_publicacao, id_categoria, isbn_codigo, img, quantidade) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [dados.titulo, dados.editora, dados.ano_publicacao, dados.id_categoria, dados.isbn_codigo, dados.img, dados.quantidade]
     );
     return result;
   } catch (error) {
-    console.error('Erro ao criar usuário:', error);
+    console.error('Erro ao cadastrar livro:', error);
     throw error;
   }
 };
 
-const usuarioExiste = async(email) => {
+const livroExiste = async(isbn, titulo) => {
     try {
         const [rows] = await banco.query(
-            'SELECT * FROM usuario WHERE email = ?',
-            [email]
+            'SELECT * FROM livro WHERE isbn_codigo = ? OR titulo = ?',
+            [isbn, titulo]
         );
         return rows.length > 0;
 
     } catch (error) {
-        throw new ErrorPersonalizado("Erro ao verificar usuário existente", 500);
+        throw new ErrorPersonalizado("Erro ao verificar livro existente", 500);
     }
 }
 

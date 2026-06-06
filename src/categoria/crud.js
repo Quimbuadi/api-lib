@@ -5,45 +5,33 @@ import bcrypt from "bcrypt";
 const criarCategoria = async (nome) => {
   try {
 
-    categoriaExiste = await categoriaExiste(nome);
-    if (categoriaExiste) {
+    const buscarCategoria = await categoriaExiste(nome);
+    if (buscarCategoria) {
       throw new ErrorPersonalizado("Categoria já existe", 400);
     }
     const [result] = await banco.query(
       'INSERT INTO categoria (nome) VALUES (?)',
       [nome]
     );
-    return result;
+    return result.insertId;
   } catch (error) {
     console.error('Erro ao criar categoria:', error);
     throw error;
   }
 };
 
-const categoriaExiste = async(nome) => {
-    try {
-        const [rows] = await banco.query( 
-            'SELECT * FROM categoria WHERE nome = ?',
-            [nome]
-        );
-        return rows.length > 0;
-    } catch (error) {
-        throw new ErrorPersonalizado("Categoria ja existe", 400);
-    }
+const categoriaExiste = async (nome) => {
+  try {
+    const [rows] = await banco.query(
+      'SELECT * FROM categoria WHERE nome = ?',
+      [nome]
+    );
+    return rows.length > 0;
+  } catch (error) {
+    throw new ErrorPersonalizado("Categoria ja existe", 400);
+  }
 };
 
-const usuarioExiste = async(email) => {
-    try {
-        const [rows] = await banco.query(
-            'SELECT * FROM usuario WHERE email = ?',
-            [email]
-        );
-        return rows.length > 0;
-
-    } catch (error) {
-        throw new ErrorPersonalizado("Erro ao verificar usuário existente", 500);
-    }
-}
 
 const atualizarCategoria = async (id, nome) => {
   try {
@@ -54,28 +42,74 @@ const atualizarCategoria = async (id, nome) => {
     if (rows.length === 0) {
       throw new ErrorPersonalizado("Categoria não encontrada", 404);
     }
+
+    if (rows[0].nome === nome) {
+      throw new ErrorPersonalizado("Nome da categoria é o mesmo", 400);
+    }
+
+    const jaExiste = await banco.query('SELECT * from categoria WHERE nome = ? AND id != ?', [nome, id]);
+    if (jaExiste[0].length > 0) {
+      throw new ErrorPersonalizado("Já existe uma categoria com esse nome", 400);
+    }
+
     const [result] = await banco.query(
       'UPDATE categoria SET nome = ? WHERE id = ?',
       [nome, id]
     );
-    return result;
-  } catch (error) {
-    console.error('Erro ao atualizar categoria:', error);
-    throw error;
+    if (result.affectedRows === 0) {
+      throw new ErrorPersonalizado("Categoria não encontrada", 404);
+    }
+    return { id, nome };
+
+  }catch (error) {
+    if (error instanceof ErrorPersonalizado) {
+      throw error;
+    }
+    throw new ErrorPersonalizado("Erro ao atualizar categoria", 500);
   }
+
 };
 
 const listarCategorias = async () => {
   try {
-    const [rows] = await banco.query( 
+    const [rows] = await banco.query(
       'SELECT * FROM categoria'
     );
     return rows;
   } catch (error) {
-    console.error('Erro ao listar categorias:', error);
     throw error;
   };
 }
 
+const buscarCategoriaPorId = async (id) => {
+  try {
+    const [rows] = await banco.query(
+      'SELECT * FROM categoria WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) {
+      throw new ErrorPersonalizado("Categoria não encontrada", 404);
+    }
+      return rows[0];
+  } catch (error) {
+    throw error;
+  }
+};
 
-export { criarCategoria, atualizarCategoria, listarCategorias };
+const buscarCategoriaPorNome = async (nome) => {
+  try {
+    const [rows] = await banco.query(
+      'SELECT * FROM categoria WHERE nome LIKE ?',
+      [`${nome}%`]
+    );
+    if (rows.length === 0) {
+      throw new ErrorPersonalizado("Categoria não encontrada", 404);
+    }
+    return rows[0];
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+export { criarCategoria, atualizarCategoria, listarCategorias, buscarCategoriaPorId, buscarCategoriaPorNome };
