@@ -1,11 +1,18 @@
 import banco from "../banco-de-dados/db.js";
 import ErrorPersonalizado from "../error/appError.js";
+import bcrypt from "bcrypt";
 
 const criarUsuario = async (dados) => {
   try {
+
+    const emailExiste = await usuarioExiste(dados.email);
+    if (emailExiste) {
+      throw new ErrorPersonalizado("Email já cadastrado", 400);
+    }
+    const hashPassword = await bcrypt.hash(dados.password, 10);
     const [result] = await banco.query(
       'INSERT INTO usuario (nome, password, email, telefone ) VALUES (?, ?, ?, ?)',
-      [dados.nome, dados.password, dados.email, dados.telefone]
+      [dados.nome, hashPassword, dados.email, dados.telefone]
     );
     return result;
   } catch (error) {
@@ -29,15 +36,41 @@ const usuarioExiste = async(email) => {
 
 const loginUsuario = async (email, password) => {
   try {
+    const emailExiste = await usuarioExiste(email);
+    if (!emailExiste) {
+      throw new ErrorPersonalizado("Usuário não encontrado", 404);
+    }
+
     const [rows] = await banco.execute(
-      'SELECT * FROM usuario WHERE email = ? AND password = ?',
-      [email, password]
+      'SELECT id, nome, email, password, telefone FROM usuario WHERE email = ?',
+      [email]
     );
-    return rows[0];
+    const usuario = rows[0];
+    const isMatch = await bcrypt.compare(password, usuario.password);
+    if (!isMatch) {
+      throw new ErrorPersonalizado("Senha incorreta", 400);
+    }
+    return usuario;
   } catch (error) {
     console.error('Erro ao fazer login:', error);
     throw error;
   }
 };
 
-export { criarUsuario, loginUsuario };
+const verPerfil = async (id) => {
+  try {
+    const [rows] = await banco.query(
+      'SELECT id, nome, email, telefone FROM usuario WHERE id = ?',
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      throw new ErrorPersonalizado("Usuário não encontrado", 404);
+    }
+    return rows[0];
+  } catch (error) {
+    throw new ErrorPersonalizado(error, 404);
+  }
+};
+
+export { criarUsuario, loginUsuario, verPerfil };

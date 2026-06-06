@@ -1,5 +1,6 @@
-import { criarUsuario, loginUsuario } from "./crud.js";
+import { criarUsuario, loginUsuario, verPerfil } from "./crud.js";
 import { usuarioSchemaLogin, usuarioSchemaCadastro } from "./validation.js";
+import ErrorPersonalizado from "../error/appError.js";
 import jwt from "jsonwebtoken";
 
 const criarUsuarioController = async (req, res) => {
@@ -10,7 +11,7 @@ const criarUsuarioController = async (req, res) => {
         }
         const resultado = await criarUsuario(req.body);
         const token = jwt.sign({ id: resultado.insertId, email: req.body.email }, process.env.JWT_SECRET, { expiresIn: '10h' });
-        res.status(201).json({ message: "Usuário criado com sucesso", id: resultado.insertId, token });
+        res.status(201).json({ message: "Usuário criado com sucesso", token });
     } catch (error) {
         res.status(500).json({ message: "Erro ao criar usuário", error: error.message });
     }  
@@ -24,8 +25,11 @@ const loginUsuarioController = async (req, res) => {
     const { email, password } = req.body;
     try {
         const usuario = await loginUsuario(email, password);
+
+        console.log(usuario);
+
         if (usuario) {
-            const token = jwt.sign({ id: usuario.id, email: usuario.email }, process.env.JWT_SECRET, { expiresIn: '10h' });
+            const token = jwt.sign({ id: usuario.id, email: usuario.email, nome: usuario.nome, telefone: usuario.telefone }, process.env.JWT_SECRET, { expiresIn: '10h' });
             res.status(200).json({ message: "Login bem-sucedido", token, usuario });
         } else {
             res.status(401).json({ message: "Email ou senha inválidos" });
@@ -35,4 +39,29 @@ const loginUsuarioController = async (req, res) => {
     }
 };
 
-export { criarUsuarioController, loginUsuarioController };
+const verPerfilController = async (req, res) => {
+    const { id } = req.params;
+    if (!id || isNaN(id)) {
+        return res.status(400).json({ message: "ID do usuário é obrigatório e deve ser um número válido" });
+    }
+    try {
+        const usuario = await verPerfil(id);
+        res.status(200).json({ usuario });
+    } catch (error) {
+        if(error instanceof ErrorPersonalizado) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const meController = async (req, res) => {
+    try {
+        const usuario = req.usuario;
+        res.status(200).json({ usuario });
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao obter perfil do usuário", error: error.message });
+    }
+};
+
+export { criarUsuarioController, loginUsuarioController, verPerfilController, meController };
