@@ -4,6 +4,7 @@ import banco from "./banco-de-dados/db.js";
 import usuarioRouter from "./usuario/router.js";
 import categoriaRouter from "./categoria/router.js";
 import livroRouter from "./livro/router.js";
+import emprestarRouter from "./emprestimo/router.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -23,5 +24,6 @@ app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 app.use("/api/usuarios", usuarioRouter);
 app.use("/api/", categoriaRouter);
 app.use("/api/", livroRouter);
+app.use("/api/", emprestarRouter);
 
 export default app;

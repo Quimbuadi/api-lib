@@ -73,4 +73,5 @@ const verPerfil = async (id) => {
   }
 };
 
+
 export { criarUsuario, loginUsuario, verPerfil };

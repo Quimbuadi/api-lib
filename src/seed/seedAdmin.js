@@ -22,4 +22,13 @@ const seedAdmin = async () => {
     }
 }
 
+/**
+NOME_BANCO='biblioteca'
+USUARIO_BANCO='root'
+SENHA_BANCO='1234'
+HOST_BANCO='localhost'
+PORTA_BANCO='3306'
+JWT_SECRET='sdffsdfjwrfwefsfs90jwerwenksfrf'
+*/
+
 seedAdmin();
