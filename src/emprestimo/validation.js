@@ -1,12 +1,15 @@
 import Joi from "joi";
-const categoriaSchema = Joi.object({
-    nome: Joi.string().min(3).max(50).required().messages({
-        'string.base': 'O nome da categoria deve ser uma string.',
-        'string.empty': 'O nome da categoria é obrigatório.',
-        'string.min': 'O nome da categoria deve ter pelo menos 3 caracteres.',
-        'string.max': 'O nome da categoria deve ter no máximo 50 caracteres.'
+const emprestimoSchema = Joi.object({
+    id_livro: Joi.number().integer().positive().required().messages({
+        'number.base': 'id_livro deve ser inteiro positivo.',
+        'any.required': 'informe o id_livro.'
+    }),
+    quantidade: Joi.number().integer().min(1).positive().required().messages({
+        'number.base': 'a quantidade deve ser inteiro.',
+        'any.required': 'informe a quantidade.',
+        "number.min": "a quantidade minima e 1"
     })
 });
 
 
-export { categoriaSchema };
+export { emprestimoSchema };
