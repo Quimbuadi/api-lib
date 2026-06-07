@@ -3,7 +3,8 @@ import ErrorPersonalizado from "../error/appError.js";
 import { buscarLivroPorId } from "../livro/crud.js";
 
 const SELECT_EMPRESTIMO = `
-  SELECT e.id, u.nome AS usuario, l.titulo AS livro, 
+  SELECT e.id, u.nome AS usuario, l.titulo AS livro,
+         l.img AS livro_img,
          e.data_emprestimo, e.data_devolucao_prevista, 
          e.data_devolucao_real, e.quantidade,
          CASE WHEN e.data_devolucao_real IS NULL THEN 'activo' ELSE 'devolvido' END AS estado
@@ -30,6 +31,15 @@ const fazerEmprestimo = async (id_usuario, id_livro, quantidade) => {
     throw new ErrorPersonalizado("Livro não encontrado", 404);
   if (livro.quantidade < quantidade)
     throw new ErrorPersonalizado("Quantidade insuficiente de cópias disponíveis", 400);
+
+  // verifica se já tem este livro emprestado
+  const [[{ total: jaTemLivro }]] = await banco.query(
+    `SELECT COUNT(*) as total FROM emprestimo 
+     WHERE id_usuario = ? AND id_livro = ? AND data_devolucao_real IS NULL`,
+    [id_usuario, id_livro]
+  );
+  if (jaTemLivro > 0)
+    throw new ErrorPersonalizado("Já tens este livro emprestado", 400);
 
   await verificarLimiteEmprestimos(id_usuario);
 
